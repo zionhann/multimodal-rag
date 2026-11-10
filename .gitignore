@@ -7,6 +7,9 @@
 # 추출 이미지 (용량 폭증 방지)
 data/figures/
 
+# 추출·요약 캐시 (Base64 이미지 포함 pickle)
+data/processed/
+
 # 벡터 DB
 chroma_db/
 

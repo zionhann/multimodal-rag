@@ -113,8 +113,6 @@ multimodal-rag/
 │   └── Multi_modal_RAG.ipynb
 ├── data/
 │   └── sample_text.pdf
-├── pyproject.toml
-├── uv.lock
 ├── requirements.txt
 ├── requirements.lock.txt
 ├── .env.example
@@ -129,15 +127,14 @@ multimodal-rag/
 | Python | `src/summarize.py` | 텍스트·표는 LLM으로, 이미지는 VLM으로 검색용 한국어 요약을 만듭니다. |
 | Python | `src/retriever.py` | 요약은 Chroma에, 원본은 docstore에 저장하는 멀티 벡터 검색기와 RAG 체인을 만듭니다. |
 | 노트북 | `notebooks/Multi_modal_RAG.ipynb` | `src/` 모듈을 호출해 추출 → 요약 → 검색까지 실행하는 통합 노트북입니다. |
-| 데이터 | `data/sample_text.pdf` | 예제 입력 PDF입니다. |
+| 데이터 | `data/sample_text.pdf` | 예제 입력 PDF입니다. 현대경제연구원 「2026년 글로벌 트렌드」 보고서(23쪽)로, 그래프·이미지가 많아 멀티모달 검색 확인에 적합합니다. |
 | 의존성 | `requirements.txt` | 직접 사용하는 패키지 목록입니다. |
 | 의존성 | `requirements.lock.txt` | 전체 버전을 고정한 재현용 목록입니다. |
-| 의존성 | `pyproject.toml`, `uv.lock` | uv로 설치할 때만 사용하는 프로젝트 선언과 잠금 파일입니다. |
 | 설정 | `.env.example` | `OPENAI_API_KEY` 입력용 템플릿입니다. `.env`로 복사해 사용합니다. |
-| 설정 | `.gitignore` | `.venv/`, `.env`, `data/figures/`, `chroma_db/` 등을 제외합니다. |
+| 설정 | `.gitignore` | `.venv/`, `.env`, `data/figures/`, `data/processed/`, `chroma_db/`, 연습용 노트북 등을 제외합니다. |
 | 문서 | `README.md` | 프로젝트 소개와 실행 방법입니다. |
 
-노트북을 실행하면 추출된 이미지가 `data/figures/`에, 추출·요약 캐시가 `data/processed/`에 생성됩니다. 두 폴더는 실행 결과물이라 저장소에 포함하지 않습니다.
+노트북을 실행하면 추출된 이미지가 `data/figures/`에, 추출·요약 캐시가 `data/processed/`에 생성됩니다.
 
 ## 8. 실행 방법
 
@@ -167,7 +164,7 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install --upgrade pip
 pip install -r requirements.txt          # 직접 쓰는 패키지만, 버전은 최신
 # 또는
-pip install -r requirements.lock.txt     # 전체 버전 고정, 환경을 그대로 재현
+pip install -r requirements.lock.txt     # 전체 버전 고정, 환경을 그대로 재현 (macOS에서 생성, 다른 OS에서 실패하면 위 requirements.txt 사용)
 
 # 커널 등록
 python -m ipykernel install --user --name multimodal-rag --display-name "Python (multimodal-rag)"
@@ -184,17 +181,32 @@ jupyter lab
 
 `notebooks/Multi_modal_RAG.ipynb`를 열고 커널 `Python (multimodal-rag)`을 선택한 뒤 위에서부터 실행합니다.
 
-### 의존성 파일
+### 소요 시간과 비용
 
-- `requirements.txt`: 사람이 읽고 관리하는 목록입니다.
-- `requirements.lock.txt`: 같은 환경을 그대로 재현하기 위한 목록입니다. macOS 환경에서 만들었으므로 다른 OS에서 설치가 실패하면 `requirements.txt`를 사용합니다.
+- 첫 실행의 PDF 추출은 2~3분 걸립니다.
+- 요약 단계는 OpenAI API를 약 80회 호출합니다(샘플 기준 텍스트 27건 + 이미지 53건).
+- 추출·요약 결과는 `data/processed/*.pkl`에 캐시되어 다음 실행부터는 호출 없이 재사용합니다.
+- 다른 PDF로 바꿀 때는 `data/processed/`와 `data/figures/`를 지우고 다시 실행합니다.
+
+### 실행 결과 예시
+
+샘플 PDF에 그래프로만 확인되는 수치를 질문했을 때의 노트북 출력입니다.
+
+```text
+Q. 폴란드 법과정의당(PiS)의 지지율은 2016년 이후 어떻게 변했나?
+------------------------------------------------------------
+폴란드 법과정의당(PiS)의 지지율은 2016년에 비해 2025년에 상승했습니다.
+2016년에는 30%였으나, 2025년에는 42%로 증가했습니다.
+```
+
+검색 단계에서는 관련 텍스트 3건과 이미지 1건이 선택되었습니다.
 
 ## 9. 실습 범위와 한계점
 
 실습 목적의 구현이라 아래 범위까지만 다룹니다.
 
-- **저장소가 프로세스 안에만 존재합니다.** 원본은 `InMemoryStore`에, 벡터는 Chroma 기본 설정(메모리)에 저장하므로 커널을 종료하면 사라집니다.
-- **이미지 요약은 한 장씩 호출합니다.** 텍스트·표와 달리 병렬 처리를 하지 않아 이미지가 많으면 시간이 오래 걸립니다.
-- **이미지와 텍스트를 Base64 정규식으로 구분합니다.** 메타데이터에 타입을 기록하지 않고 내용의 패턴으로 판별합니다.
-- **캐시를 pickle 파일로 저장합니다.** 이 프로젝트가 만든 로컬 파일만 읽는 것을 전제로 합니다.
-- **정량 평가는 포함하지 않았습니다.** 검색 정확도와 답변 품질은 노트북의 검색 테스트로 직접 확인하는 수준입니다.
+- **저장소가 프로세스 안에만 존재합니다**: 원본은 `InMemoryStore`에, 벡터는 Chroma 기본 설정(메모리)에 저장하므로 커널을 종료하면 사라집니다.
+- **이미지 요약은 한 장씩 호출합니다**: 텍스트·표와 달리 병렬 처리를 하지 않아 이미지가 많으면 시간이 오래 걸립니다.
+- **이미지와 텍스트를 Base64 정규식으로 구분합니다**: 메타데이터에 타입을 기록하지 않고 내용의 패턴으로 판별합니다.
+- **캐시를 pickle 파일로 저장합니다**: 이 프로젝트가 만든 로컬 파일만 읽는 것을 전제로 합니다.
+- **정량 평가는 포함하지 않았습니다**: 검색 정확도와 답변 품질은 노트북의 검색 테스트로 직접 확인하는 수준입니다.
